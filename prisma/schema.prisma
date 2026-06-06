@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SubscriptionTier {
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+enum DeductionSource {
+  FREE
+  BUNDLE
+}
+
+// Keycloak is the identity provider; this table anchors the external subject ID
+// so all other tables can carry a typed foreign key without duplicating profile data.
+model User {
+  id        String   @id // Keycloak subject (sub claim)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  chatMessages        ChatMessage[]
+  freeQuotaWindows    FreeQuotaWindow[]
+  subscriptionBundles SubscriptionBundle[]
+  sessions            Session[]
+
+  @@map("users")
+}
+
+model ChatMessage {
+  id               String          @id @default(uuid())
+  userId           String          @map("user_id")
+  question         String          @db.Text
+  answer           String          @db.Text
+  promptTokens     Int             @map("prompt_tokens")
+  completionTokens Int             @map("completion_tokens")
+  source           DeductionSource
+  bundleId         String?         @map("bundle_id")
+  createdAt        DateTime        @default(now()) @map("created_at")
+
+  user   User                @relation(fields: [userId], references: [id])
+  bundle SubscriptionBundle? @relation(fields: [bundleId], references: [id])
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("chat_messages")
+}
+
+// Composite PK (user_id, month_key) is the reset mechanism: a new calendar month
+// causes an upsert with used=0 rather than incrementing stale state.
+model FreeQuotaWindow {
+  userId   String @map("user_id")
+  monthKey String @map("month_key") // "YYYY-MM"
+  used     Int    @default(0)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@id([userId, monthKey])
+  @@map("free_quota_windows")
+}
+
+model SubscriptionBundle {
+  id           String           @id @default(uuid())
+  userId       String           @map("user_id")
+  tier         SubscriptionTier
+  billingCycle BillingCycle     @map("billing_cycle")
+  maxMessages  Int              @map("max_messages")
+  // Enterprise bundles store 0 here; remaining is never decremented for that tier.
+  remaining    Int              @default(0)
+  price        Decimal          @db.Decimal(10, 2)
+  startDate    DateTime         @map("start_date")
+  endDate      DateTime         @map("end_date")
+  renewalDate  DateTime         @map("renewal_date")
+  autoRenew    Boolean          @default(true) @map("auto_renew")
+  active       Boolean          @default(true)
+  cancelledAt  DateTime?        @map("cancelled_at")
+  activatedAt  DateTime         @default(now()) @map("activated_at")
+
+  user         User          @relation(fields: [userId], references: [id])
+  chatMessages ChatMessage[]
+
+  @@index([userId, active])
+  @@map("subscription_bundles")
+}
+
+// Session-bound token layer: an access token is only valid when its Keycloak sid
+// maps to an active, non-revoked session row. Possession of the JWT alone is insufficient.
+model Session {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  keycloakSid String   @unique @map("keycloak_sid")
+  fingerprint String   // HMAC-SHA256 of (userId + userAgent + acceptLanguage)
+  revoked     Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  expiresAt   DateTime @map("expires_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, revoked])
+  @@map("sessions")
+}

@@ -5,12 +5,12 @@ const config: Config = {
   testEnvironment: 'node',
   rootDir: 'src',
   moduleFileExtensions: ['ts', 'js', 'json'],
-  testRegex: '(?<!\\.integration)\\.spec\\.ts$',
+  testRegex: '\\.integration\\.spec\\.ts$',
   transform: {
     '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/../tsconfig.json' }],
   },
-  collectCoverageFrom: ['**/*.ts', '!**/*.spec.ts', '!**/index.ts', '!**/*.module.ts'],
-  coverageDirectory: '../coverage',
+  setupFiles: ['<rootDir>/../test/setup.integration.ts'],
+  testTimeout: 30000,
   clearMocks: true,
 };
 
