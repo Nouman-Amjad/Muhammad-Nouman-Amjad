@@ -51,6 +51,14 @@ export class SessionService {
     });
 
     if (!existing) {
+      // Provision the local user record on first appearance (Keycloak is the
+      // source of truth for identity; we keep a minimal anchor for FK constraints).
+      await this.prisma.user.upsert({
+        where: { id: params.userId },
+        create: { id: params.userId },
+        update: {},
+      });
+
       // First request for this Keycloak session — establish the binding.
       await this.prisma.session.create({
         data: {
