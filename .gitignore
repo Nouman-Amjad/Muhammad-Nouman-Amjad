@@ -24,3 +24,4 @@ logs/
 
 # Prisma local artifacts
 prisma/*.db
+humanizer/
