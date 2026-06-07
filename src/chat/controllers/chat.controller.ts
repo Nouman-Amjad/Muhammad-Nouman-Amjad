@@ -12,6 +12,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { SessionBoundGuard } from '../../auth/guards/session-bound.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
@@ -30,6 +31,7 @@ import { ListMessagesDto } from './dto/list-messages.dto';
 @Controller('chat/messages')
 @UseGuards(JwtAuthGuard, SessionBoundGuard, RolesGuard)
 @UseInterceptors(SanitizeInputInterceptor, StripMetadataInterceptor)
+@SkipThrottle({ auth: true, subscription: true })
 export class ChatController {
   constructor(
     private readonly sendMessage: SendChatMessageUseCase,

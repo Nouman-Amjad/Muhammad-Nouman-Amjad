@@ -1,13 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
-import type { ExecutionContext } from '@nestjs/common';
 import type { Request } from 'express';
 import type { Principal } from '../../shared/domain/role';
 
 /**
  * Extends the default throttler guard to key rate-limit buckets on the
  * authenticated user ID when available, falling back to the originating IP
- * for unauthenticated requests (e.g. auth endpoints).
+ * for unauthenticated requests (e.g. health/auth endpoints).
+ *
+ * shouldSkip is delegated to the base class so that @SkipThrottle decorators
+ * on individual controllers can opt specific named buckets out (e.g. a chat
+ * controller skips the auth and subscription buckets).
  */
 @Injectable()
 export class ThrottleByUserGuard extends ThrottlerGuard {
@@ -22,9 +25,5 @@ export class ThrottleByUserGuard extends ThrottlerGuard {
         ? forwarded.split(',')[0]?.trim()
         : (req as unknown as Request).ip;
     return Promise.resolve(`ip:${ip ?? 'unknown'}`);
-  }
-
-  protected override shouldSkip(_ctx: ExecutionContext): Promise<boolean> {
-    return Promise.resolve(false);
   }
 }

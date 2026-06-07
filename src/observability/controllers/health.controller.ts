@@ -1,4 +1,5 @@
 import { Controller, Get, Injectable } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import {
   HealthCheck,
   HealthCheckResult,
@@ -25,6 +26,7 @@ export class PrismaHealthIndicator extends HealthIndicator {
 }
 
 @Controller('health')
+@SkipThrottle({ chat: true, subscription: true })
 export class HealthController {
   constructor(
     private readonly health: HealthCheckService,

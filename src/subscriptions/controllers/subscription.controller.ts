@@ -11,6 +11,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { SessionBoundGuard } from '../../auth/guards/session-bound.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
@@ -31,6 +32,7 @@ import type { SubscriptionBundleRepository } from '../domain/repositories/subscr
 @Controller('subscriptions')
 @UseGuards(JwtAuthGuard, SessionBoundGuard, RolesGuard)
 @UseInterceptors(SanitizeInputInterceptor, StripMetadataInterceptor)
+@SkipThrottle({ auth: true, chat: true })
 export class SubscriptionController {
   constructor(
     private readonly createSubscription: CreateSubscriptionUseCase,
